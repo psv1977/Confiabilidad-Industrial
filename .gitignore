@@ -1,0 +1,20 @@
+# Python (Archivos compilados)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales (Muy importante para no subir gigas de basura)
+.venv/
+venv/
+ENV/
+
+# Configuración de VS Code
+.vscode/
+
+# Datos (Si planeas guardar CSVs localmente que no quieres en la nube)
+data/*.csv
+data/*.xlsx
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
