@@ -21,4 +21,4 @@ A diferencia de las planillas tradicionales, esta aplicación ofrece:
 - **Control de Versiones:** Git & GitHub.
 
 ---
-*Desarrollado por Andrea Lazo*
+*Desarrollado por Ingeniería y Mantenimiento SL SpA*
