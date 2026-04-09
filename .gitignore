@@ -7,6 +7,7 @@ __pycache__/
 .venv/
 venv/
 ENV/
+confiabilidad/
 
 # Configuración de VS Code
 .vscode/
