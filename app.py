@@ -1,130 +1,159 @@
 import streamlit as st
+import pandas as pd
 from database import crear_tabla, guardar_activo, cargar_activos, guardar_amef, cargar_amef_por_equipo
 
 # ==========================================
 # 1. CONFIGURACIÓN INICIAL
 # ==========================================
-st.set_page_config(page_title="Confiabilidad Industrial", layout="wide")
+st.set_page_config(page_title="APM Confiabilidad", layout="wide")
 crear_tabla()
 
-st.title("🛡️ Confiabilidad Industrial - Registro de Activos")
+st.title("🛡️ APM - Asset Performance Management")
 
-# ==========================================
-# 2. INGRESO DE ACTIVOS
-# ==========================================
-with st.form("nuevo_activo"):
-    st.subheader("Registrar Nuevo Análisis de Criticidad")
-    col1, col2 = st.columns(2)
-    with col1:
-        tag = st.text_input("TAG del Equipo (Ej: P-101)")
-        nombre = st.text_input("Nombre del Equipo")
-    with col2:
-        frec_falla = st.slider("Frecuencia de Falla (1-10)", 1, 10, 5)
-        cons_falla = st.slider("Consecuencia (1-10)", 1, 10, 5)
-    
-    submit = st.form_submit_button("Guardar en Base de Datos")
-
-if submit:
-    guardar_activo(tag, nombre, frec_falla, cons_falla)
-    st.success(f"✅ Activo {tag} guardado correctamente.")
-
-# Cargamos los datos una sola vez para usarlos en toda la app
+# Cargamos los datos globales
 df_activos = cargar_activos()
 
 # ==========================================
-# 3. INVENTARIO Y EXPORTACIÓN
+# CREACIÓN DE NAVEGACIÓN POR PESTAÑAS
 # ==========================================
-st.divider()
-st.subheader("📋 Inventario de Equipos Analizados")
-
-if not df_activos.empty:
-    st.dataframe(df_activos, use_container_width=True)
-    
-    # Botón de exportación mágica
-    st.markdown("### Exportar Reporte")
-    csv = df_activos.to_csv(index=False).encode('utf-8')
-    
-    st.download_button(
-        label="📥 Descargar Inventario (CSV para Excel)",
-        data=csv,
-        file_name="inventario_criticidad_rcm.csv",
-        mime="text/csv",
-    )
-else:
-    st.info("No hay activos registrados aún.")
+tab_registro, tab_amef, tab_dashboard = st.tabs([
+    "🏭 1. Gestión de Activos", 
+    "⚙️ 2. Motor RCM (AMEF)", 
+    "📊 3. Dashboard Gerencial"
+])
 
 # ==========================================
-# 4. MATRIZ DE CRITICIDAD
+# PESTAÑA 1: REGISTRO Y MATRIZ
 # ==========================================
-st.divider()
-st.subheader("📊 Matriz de Riesgo / Criticidad")
-
-if not df_activos.empty:
-    tab1, tab2 = st.tabs(["Gráfico de Dispersión", "Resumen Estadístico"])
-    
-    with tab1:
-        st.write("Visualización de activos según su Frecuencia y Consecuencia")
-        st.scatter_chart(
-            data=df_activos,
-            x="consecuencia",
-            y="frecuencia",
-            color="#FF4B4B", 
-            size="criticidad" 
-        )
+with tab_registro:
+    with st.form("nuevo_activo"):
+        st.subheader("Registrar Nuevo Equipo")
         
-    with tab2:
-        st.write("Métricas clave de tus activos registrados:")
-        col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("Total Activos", len(df_activos))
-        col_m2.metric("Criticidad Promedio", round(df_activos['criticidad'].mean(), 1))
-        col_m3.metric("Criticidad Máxima", df_activos['criticidad'].max())
-else:
-    st.info("Agrega más activos para visualizar la matriz.")
-
-# ==========================================
-# 5. MÓDULO AMEF
-# ==========================================
-st.divider()
-st.header("⚙️ Análisis de Modos y Efectos de Falla (AMEF)")
-
-if not df_activos.empty:
-    # Selector de equipo
-    lista_tags = df_activos['tag'].tolist()
-    tag_seleccionado = st.selectbox("Seleccione un equipo para analizar:", lista_tags)
-    
-    nombre_equipo = df_activos[df_activos['tag'] == tag_seleccionado]['nombre'].iloc[0]
-    st.info(f"Analizando Activo: **{nombre_equipo}**")
-
-    # Formulario AMEF
-    with st.form("formulario_amef"):
-        st.subheader("Registrar nuevo Modo de Falla")
+        # Menú desplegable con opción de ingreso manual (¡Tu corrección anterior!)
+        sistemas_comunes = [
+            "Sistema de Propulsión Principal",
+            "Sistema de Generación Eléctrica",
+            "Sistema de Bombeo y Lastre",
+            "Otra Máquina/Sistema (Ingresar nuevo)"
+        ]
+        seleccion = st.selectbox("Pertenece a la Máquina/Sistema:", sistemas_comunes)
         
-        funcion = st.text_area("Función del Sistema", placeholder="Ej: Bombear agua a 50 GPM a la caldera.")
-        falla_funcional = st.text_area("Falla Funcional", placeholder="Ej: No bombea agua / Bombea menos de 50 GPM.")
-        
-        col_a1, col_a2 = st.columns(2)
-        with col_a1:
-            modo_falla = st.text_input("Modo de Falla (Causa Raíz)", placeholder="Ej: Rodamiento lado acople desgastado")
-        with col_a2:
-            efecto = st.text_input("Efecto de la Falla", placeholder="Ej: Parada de caldera, vibración excesiva")
-            
-        btn_amef = st.form_submit_button("Guardar Modo de Falla")
-        
-    if btn_amef:
-        if funcion and falla_funcional and modo_falla and efecto:
-            guardar_amef(tag_seleccionado, funcion, falla_funcional, modo_falla, efecto)
-            st.success("✅ Modo de falla registrado correctamente.")
+        if seleccion == "Otra Máquina/Sistema (Ingresar nuevo)":
+            sistema_seleccionado = st.text_input("Escriba el nombre de la nueva máquina:")
         else:
-            st.warning("⚠️ Por favor, complete todos los campos del AMEF.")
-
-    # Tabla AMEF del equipo
-    st.subheader(f"📋 Registros AMEF para {tag_seleccionado}")
-    df_amef = cargar_amef_por_equipo(tag_seleccionado)
-    
-    if not df_amef.empty:
-        st.dataframe(df_amef, use_container_width=True)
-    else:
-        st.write("Aún no hay modos de falla registrados para este equipo.")
+            sistema_seleccionado = seleccion
         
-else:
-    st.warning("⚠️ Debe registrar al menos un activo en la sección superior para comenzar el AMEF.")
+        col1, col2 = st.columns(2)
+        with col1:
+            tag = st.text_input("TAG del Equipo (Ej: BOM-101)")
+            nombre = st.text_input("Nombre del Equipo")
+        with col2:
+            frec_falla = st.slider("Frecuencia de Falla (1-10)", 1, 10, 5)
+            cons_falla = st.slider("Consecuencia (1-10)", 1, 10, 5)
+        
+        submit = st.form_submit_button("Guardar en Base de Datos")
+
+    if submit:
+        if tag and nombre and sistema_seleccionado:
+            guardar_activo(sistema_seleccionado, tag, nombre, frec_falla, cons_falla)
+            st.success(f"✅ Activo {tag} guardado correctamente.")
+            st.rerun() # Recarga la página automáticamente
+        else:
+            st.warning("⚠️ Faltan datos por completar.")
+
+    st.divider()
+    if not df_activos.empty:
+        st.subheader("📋 Inventario de Equipos")
+        st.dataframe(df_activos, use_container_width=True)
+        csv = df_activos.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Descargar Excel (CSV)", data=csv, file_name="inventario.csv", mime="text/csv")
+    else:
+        st.info("Aún no hay equipos registrados.")
+
+# ==========================================
+# PESTAÑA 2: MÓDULO AMEF
+# ==========================================
+with tab_amef:
+    st.header("⚙️ Análisis de Modos y Efectos de Falla")
+    if not df_activos.empty:
+        umbral_critico = st.slider("Umbral de Criticidad para AMEF", min_value=1, max_value=100, value=25)
+        equipos_criticos = df_activos[df_activos['criticidad'] >= umbral_critico]
+        
+        if not equipos_criticos.empty:
+            st.error(f"⚠️ {len(equipos_criticos)} equipo(s) en zona de riesgo requieren AMEF.")
+            lista_tags = equipos_criticos['tag'].tolist()
+            tag_seleccionado = st.selectbox("Seleccione un equipo crítico:", lista_tags)
+            
+            with st.form("formulario_amef"):
+                funcion = st.text_area("Función del Sistema")
+                falla_funcional = st.text_area("Falla Funcional")
+                col_a1, col_a2 = st.columns(2)
+                with col_a1: modo_falla = st.text_input("Modo de Falla (Causa Raíz)")
+                with col_a2: efecto = st.text_input("Efecto de la Falla")
+                btn_amef = st.form_submit_button("Guardar AMEF")
+                
+            if btn_amef and funcion and modo_falla:
+                guardar_amef(tag_seleccionado, funcion, falla_funcional, modo_falla, efecto)
+                st.success("✅ AMEF registrado.")
+                st.rerun()
+            
+            st.subheader(f"Historial AMEF: {tag_seleccionado}")
+            df_amef = cargar_amef_por_equipo(tag_seleccionado)
+            if not df_amef.empty: st.dataframe(df_amef, use_container_width=True)
+        else:
+            st.success("🎉 Ningún equipo supera el umbral crítico.")
+    else:
+        st.warning("Debe registrar activos primero.")
+
+# ==========================================
+# PESTAÑA 3: DASHBOARD GERENCIAL (¡LO NUEVO!)
+# ==========================================
+with tab_dashboard:
+    st.header("📊 Panel de Indicadores de Confiabilidad (KPIs)")
+    
+    if not df_activos.empty:
+        # --- MOTOR DE SIMULACIÓN MATEMÁTICA ---
+        # Calculamos KPIs inferidos basados en la matriz cualitativa
+        df_kpi = df_activos.copy()
+        df_kpi['MTBF_horas'] = (11 - df_kpi['frecuencia']) * 720 # Mientras menor frecuencia, mayor MTBF
+        df_kpi['MTTR_horas'] = df_kpi['consecuencia'] * 3.5      # Mientras mayor consecuencia, mayor tiempo de reparación
+        df_kpi['Disponibilidad_%'] = (df_kpi['MTBF_horas'] / (df_kpi['MTBF_horas'] + df_kpi['MTTR_horas'])) * 100
+        
+        # --- VISTA 1: TARJETAS GLOBALES (KPIs de la Planta) ---
+        st.subheader("Estado Global de la Instalación")
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric("Total Activos", len(df_kpi))
+        col_k2.metric("Disponibilidad Promedio", f"{df_kpi['Disponibilidad_%'].mean():.1f} %")
+        col_k3.metric("MTBF Promedio", f"{int(df_kpi['MTBF_horas'].mean())} hrs")
+        col_k4.metric("MTTR Promedio", f"{df_kpi['MTTR_horas'].mean():.1f} hrs")
+        
+        st.divider()
+        
+        # --- VISTA 2: ANÁLISIS POR SISTEMA ---
+        st.subheader("Desempeño por Máquina / Sistema")
+        
+        col_graf1, col_graf2 = st.columns(2)
+        
+        with col_graf1:
+            st.write("**Criticidad Promedio por Sistema**")
+            # Agrupamos por sistema y sacamos el promedio
+            kpi_sistema = df_kpi.groupby('sistema')['criticidad'].mean().reset_index()
+            st.bar_chart(data=kpi_sistema, x='sistema', y='criticidad', color="#FF4B4B")
+            
+        with col_graf2:
+            st.write("**Matriz de Riesgo Global**")
+            st.scatter_chart(data=df_kpi, x="consecuencia", y="frecuencia", size="criticidad", color="#FFA500")
+
+        # --- VISTA 3: TABLA DE DETALLE TÉCNICO ---
+        st.divider()
+        st.subheader("Detalle Analítico por Equipo")
+        # Mostramos solo las columnas que le importan a gerencia
+        df_mostrar = df_kpi[['sistema', 'tag', 'nombre', 'MTBF_horas', 'MTTR_horas', 'Disponibilidad_%']]
+        st.dataframe(df_mostrar.style.format({
+            'MTBF_horas': '{:.0f}', 
+            'MTTR_horas': '{:.1f}', 
+            'Disponibilidad_%': '{:.2f}%'
+        }), use_container_width=True)
+
+    else:
+        st.info("Ingresa equipos en la Pestaña 1 para visualizar el Dashboard.")

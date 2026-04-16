@@ -1,16 +1,16 @@
 import sqlite3
 import pandas as pd
 
-# Base de datos para almacenar los activos y sus datos de confiabilidad
 def crear_tabla():
     """Crea las tablas de activos y AMEF si no existen."""
     conn = sqlite3.connect("confiabilidad.db")
     cursor = conn.cursor()
     
-    # Tabla 1: Activos (La que ya tenías)
+    # Tabla 1: Activos (AHORA CON JERARQUÍA DE SISTEMA)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS activos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sistema TEXT NOT NULL,
             tag TEXT NOT NULL UNIQUE,
             nombre TEXT NOT NULL,
             frecuencia INTEGER,
@@ -20,7 +20,7 @@ def crear_tabla():
         )
     """)
     
-    # Tabla 2: AMEF (¡Nueva!)
+    # Tabla 2: AMEF (Relacionada a los activos)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS amef (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,35 +29,37 @@ def crear_tabla():
             falla_funcional TEXT NOT NULL,
             modo_falla TEXT NOT NULL,
             efecto TEXT NOT NULL,
-            FOREIGN KEY (tag_activo) REFERENCES activos(tag) 
+            FOREIGN KEY (tag_activo) REFERENCES activos(tag)
         )
     """)
     
     conn.commit()
     conn.close()
 
-# Llamar a la función para crear la tabla al iniciar el programa
-def guardar_activo(tag, nombre, frecuencia, consecuencia):
-    """Inserta un nuevo activo en la base de datos."""
-    criticidad = frecuencia * consecuencia
+def guardar_activo(sistema, tag, nombre, frec_falla, cons_falla):
+    # 1. El motor calcula la criticidad por su cuenta (¡no hay que pedirla en app.py!)
+    criticidad = frec_falla * cons_falla
+    
+    # 2. Se conecta a la base de datos
     conn = sqlite3.connect("confiabilidad.db")
     cursor = conn.cursor()
+    
+    # 3. Guarda los 6 datos (Fíjate que hay 6 signos de interrogación)
     cursor.execute("""
-        INSERT INTO activos (tag, nombre, frecuencia, consecuencia, criticidad)
-        VALUES (?, ?, ?, ?, ?)
-    """, (tag, nombre, frecuencia, consecuencia, criticidad))
+        INSERT INTO activos (sistema, tag, nombre, frecuencia, consecuencia, criticidad)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (sistema, tag, nombre, frec_falla, cons_falla, criticidad))
+    
     conn.commit()
     conn.close()
 
-# Función para cargar todos los activos desde la base de datos
 def cargar_activos():
-    """Retorna todos los activos como un DataFrame de Pandas."""
+    """Retorna todos los activos registrados como DataFrame."""
     conn = sqlite3.connect("confiabilidad.db")
     df = pd.read_sql_query("SELECT * FROM activos", conn)
     conn.close()
     return df
 
-#
 def guardar_amef(tag_activo, funcion, falla_funcional, modo_falla, efecto):
     """Inserta un nuevo modo de falla asociado a un activo."""
     conn = sqlite3.connect("confiabilidad.db")
