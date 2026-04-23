@@ -1,6 +1,7 @@
 # Confiabilidad Industrial (RCM App)
 
-Sistema de gestión para el **Mantenimiento Centrado en Confiabilidad (RCM)** diseñado para transformar la toma de decisiones en entornos industriales, eliminando la dependencia de hojas de cálculo vulnerables.
+Sistema de gestión para el **Mantenimiento Centrado en Confiabilidad (RCM)** diseñado para transformar 
+la toma de decisiones en entornos industriales, eliminando la dependencia de hojas de cálculo vulnerables.
 
 ## 🚀 Propuesta de Valor
 A diferencia de las planillas tradicionales, esta aplicación ofrece:
