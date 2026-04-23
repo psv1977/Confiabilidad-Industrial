@@ -1,13 +1,18 @@
 # Python (Archivos compilados)
+
+db.sqlite3
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 
 # Entornos virtuales (Muy importante para no subir gigas de basura)
 .venv/
+.env
 venv/
 ENV/
 confiabilidad/
+.Vibro_venv/
 
 # Configuración de VS Code
 .vscode/
